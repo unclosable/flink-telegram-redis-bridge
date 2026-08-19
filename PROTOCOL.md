@@ -1,5 +1,7 @@
 # Redis Streams protocol
 
+Companion DSH-side contract: [harness-redis-connector PROTOCOL.md](https://github.com/unclosable/harness-redis-connector/blob/main/PROTOCOL.md).
+
 Each Redis Stream entry has exactly one field named `json`. Its value is a JSON envelope with `version: 1` and snake_case field names.
 
 ```json

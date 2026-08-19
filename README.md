@@ -2,6 +2,14 @@
 
 A small Apache Flink application that bridges Telegram updates and Redis Streams. It is designed to sit between Telegram users and any service that understands the JSON contract in [PROTOCOL.md](PROTOCOL.md).
 
+## DeepSeek Harness ecosystem
+
+```
+Telegram <-> flink-telegram-redis-bridge <-> Redis Streams <-> harness-redis-connector <-> DeepSeek Harness session/agent
+```
+
+This project is the transport-only Telegram <-> Redis Streams half of a DeepSeek Harness integration. [harness-redis-connector](https://github.com/unclosable/harness-redis-connector) is the DSH-side plugin: it adapts Redis Streams to DeepSeek Harness sessions and agents. The two projects share the documented wire contract in [PROTOCOL.md](PROTOCOL.md); either half can be used with any counterpart that implements that contract.
+
 ```
 Telegram <-> inbound Flink job <-> harness:inbound (Redis Stream) <-> consumer
 Telegram <-> outbound Flink job <-> harness:outbound (Redis Stream) <-> producer
