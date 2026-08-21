@@ -3,6 +3,7 @@ package io.github.flinktelegrambridge.service;
 import io.github.flinktelegrambridge.protocol.HarnessEnvelope;
 import io.github.flinktelegrambridge.protocol.HarnessParseResult;
 import io.github.flinktelegrambridge.protocol.RoutingDecision;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class HarnessOutboundRouterTest {
 
     private final HarnessOutboundRouter router = new HarnessOutboundRouter();
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     @Test
     void recoversChatIdFromMetadata() {
@@ -55,6 +57,7 @@ class HarnessOutboundRouterTest {
         assertTrue(decision.shouldForward());
         assertEquals("12345", decision.outboundMessage().chatId());
         assertEquals("hello", decision.outboundMessage().text());
+        assertEquals("", decision.outboundMessage().parseMode());
         assertNull(decision.outboundMessage().botId());
     }
 
@@ -71,6 +74,25 @@ class HarnessOutboundRouterTest {
     }
 
     @Test
+    void routesMarkdownAssistantMessageWithStringContent() throws Exception {
+        HarnessEnvelope envelope = new HarnessEnvelope(1, "telegram:chat:12345", "s1", null, "c1",
+                "assistant_message", "TEXT/MARKDOWN", JSON.readTree("\"## Result\\n\\n**Success**!\""), Map.of("chatId", "12345"));
+        RoutingDecision decision = router.route(HarnessParseResult.valid(envelope));
+        assertTrue(decision.shouldForward());
+        assertEquals("MarkdownV2", decision.outboundMessage().parseMode());
+        assertEquals("*Result*\n\n*Success*\\!", decision.outboundMessage().text());
+    }
+
+    @Test
+    void routesMarkdownAssistantMessageWithLegacyObjectContent() {
+        HarnessEnvelope envelope = new HarnessEnvelope(1, "telegram:chat:12345", "s1", null, "c1",
+                "assistant_message", "text/markdown", JSON.valueToTree(text("*emphasis*")), Map.of("chatId", "12345"));
+        RoutingDecision decision = router.route(HarnessParseResult.valid(envelope));
+        assertEquals("_emphasis_", decision.outboundMessage().text());
+        assertEquals("MarkdownV2", decision.outboundMessage().parseMode());
+    }
+
+    @Test
     void routesErrorWithChatId() {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("chatId", "12345");
@@ -79,6 +101,15 @@ class HarnessOutboundRouterTest {
         RoutingDecision decision = router.route(HarnessParseResult.valid(envelope));
         assertTrue(decision.shouldForward());
         assertTrue(decision.outboundMessage().text().startsWith("Error:"));
+    }
+
+    @Test
+    void routesMarkdownErrorWithMarkdownV2() throws Exception {
+        HarnessEnvelope envelope = new HarnessEnvelope(1, "telegram:chat:12345", "s1", null, "c1", "error",
+                "text/markdown", JSON.readTree("\"**boom**!\""), Map.of("chatId", "12345"));
+        RoutingDecision decision = router.route(HarnessParseResult.valid(envelope));
+        assertEquals("MarkdownV2", decision.outboundMessage().parseMode());
+        assertEquals("Error: *boom*\\!", decision.outboundMessage().text());
     }
 
     @Test

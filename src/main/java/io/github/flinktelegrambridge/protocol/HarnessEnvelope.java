@@ -3,6 +3,8 @@ package io.github.flinktelegrambridge.protocol;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,10 +25,12 @@ public record HarnessEnvelope(
         @JsonProperty("message_id") @JsonInclude(JsonInclude.Include.NON_NULL) String messageId,
         @JsonProperty("correlation_id") @JsonInclude(JsonInclude.Include.NON_NULL) String correlationId,
         String type,
-        Map<String, Object> content,
+        @JsonProperty("content_type") @JsonInclude(JsonInclude.Include.NON_NULL) String contentType,
+        @JsonProperty("content") JsonNode content,
         Map<String, Object> metadata) {
 
     public static final int SUPPORTED_VERSION = 1;
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     public static final String TYPE_MESSAGE = "message";
     public static final String TYPE_NEW_SESSION = "new_session";
@@ -41,8 +45,16 @@ public record HarnessEnvelope(
     public static final String CONTENT_TEXT = "text";
 
     public HarnessEnvelope {
-        content = content == null ? new LinkedHashMap<>() : content;
+        content = content == null ? JSON.createObjectNode() : content;
         metadata = metadata == null ? new LinkedHashMap<>() : metadata;
+    }
+
+    /** Compatibility constructor for the established object-shaped content form. */
+    public HarnessEnvelope(
+            Integer version, String conversationId, String sessionId, String messageId, String correlationId,
+            String type, Map<String, Object> content, Map<String, Object> metadata) {
+        this(version, conversationId, sessionId, messageId, correlationId, type, null,
+                JSON.valueToTree(content == null ? new LinkedHashMap<>() : content), metadata);
     }
 
     /**
@@ -62,7 +74,8 @@ public record HarnessEnvelope(
                 buildMessageId(inbound.updateId(), inbound.messageId()),
                 null,
                 TYPE_MESSAGE,
-                content,
+                null,
+                JSON.valueToTree(content),
                 metadata);
     }
 
@@ -82,7 +95,8 @@ public record HarnessEnvelope(
                 "telegram-callback-" + inbound.callbackQueryId(),
                 callback.correlationId(),
                 TYPE_QUESTION_ANSWER,
-                content,
+                null,
+                JSON.valueToTree(content),
                 metadataFromInbound(inbound));
     }
 

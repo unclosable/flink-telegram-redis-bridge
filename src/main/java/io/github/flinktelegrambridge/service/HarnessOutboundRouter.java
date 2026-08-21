@@ -6,6 +6,9 @@ import io.github.flinktelegrambridge.protocol.QuestionCallbackBinding;
 import io.github.flinktelegrambridge.protocol.QuestionCallbackOption;
 import io.github.flinktelegrambridge.protocol.RoutingDecision;
 import io.github.flinktelegrambridge.protocol.TelegramPayloads;
+import io.github.flinktelegrambridge.telegram.MarkdownV2Renderer;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.Map;
 import java.util.List;
@@ -60,8 +63,7 @@ public final class HarnessOutboundRouter {
         if (text == null || text.isBlank()) {
             return RoutingDecision.drop("assistant_message dropped: blank text");
         }
-        return RoutingDecision.forward(
-                new TelegramPayloads.TelegramOutboundMessage(chatId, text, "", false, resolveBotId(envelope)));
+        return forwardText(chatId, text, envelope);
     }
 
     private RoutingDecision routeError(HarnessEnvelope envelope) {
@@ -76,9 +78,7 @@ public final class HarnessOutboundRouter {
         if (chatId == null) {
             return RoutingDecision.drop("error dropped (no resolvable chatId): " + detail);
         }
-        return RoutingDecision.forward(
-                new TelegramPayloads.TelegramOutboundMessage(
-                        chatId, "Error: " + detail, "", false, resolveBotId(envelope)));
+        return forwardText(chatId, "Error: " + detail, envelope);
     }
 
     private RoutingDecision routeQuestionRequest(HarnessEnvelope envelope) {
@@ -89,28 +89,28 @@ public final class HarnessOutboundRouter {
         if (envelope.correlationId() == null || envelope.correlationId().isBlank()) {
             return RoutingDecision.drop("question_request dropped: missing correlation_id");
         }
-        Object rawQuestions = envelope.content() == null ? null : envelope.content().get("questions");
-        if (!(rawQuestions instanceof List<?> questions) || questions.isEmpty()) {
+        JsonNode rawQuestions = envelope.content() == null ? null : envelope.content().get("questions");
+        if (rawQuestions == null || !rawQuestions.isArray() || rawQuestions.isEmpty()) {
             return RoutingDecision.drop("question_request dropped: missing questions");
         }
 
         List<TelegramPayloads.TelegramOutboundMessage> messages = new ArrayList<>();
         List<QuestionCallbackBinding> bindings = new ArrayList<>();
         String botId = resolveBotId(envelope);
-        for (Object rawQuestion : questions) {
-            if (!(rawQuestion instanceof Map<?, ?> question)) {
+        for (JsonNode rawQuestion : rawQuestions) {
+            if (!rawQuestion.isObject()) {
                 return RoutingDecision.drop("question_request dropped: invalid question shape");
             }
-            String questionId = nonBlankString(question.get("id"));
-            String text = nonBlankString(question.get("text"));
+            String questionId = nonBlankString(rawQuestion.get("id"));
+            String text = nonBlankString(rawQuestion.get("text"));
             if (questionId == null || text == null) {
                 return RoutingDecision.drop("question_request dropped: question id/text missing");
             }
-            boolean multiSelect = Boolean.TRUE.equals(question.get("multi_select"));
+            boolean multiSelect = rawQuestion.path("multi_select").asBoolean(false);
             List<QuestionCallbackOption> callbackOptions = new ArrayList<>();
-            Object rawOptions = question.get("options");
-            if (rawOptions instanceof List<?> options) {
-                for (Object rawOption : options) {
+            JsonNode rawOptions = rawQuestion.get("options");
+            if (rawOptions != null && rawOptions.isArray()) {
+                for (JsonNode rawOption : rawOptions) {
                     String option = nonBlankString(rawOption);
                     if (option == null) continue;
                     String callbackKey = UUID.randomUUID().toString();
@@ -182,17 +182,25 @@ public final class HarnessOutboundRouter {
         return botId.isBlank() ? null : botId;
     }
 
-    private static String textOf(Map<String, Object> content) {
-        if (content == null) {
+    private static String textOf(JsonNode content) {
+        if (content == null || content.isNull()) {
             return null;
         }
-        Object text = content.get(HarnessEnvelope.CONTENT_TEXT);
-        return text == null ? null : text.toString();
+        if (content.isTextual()) return content.asText();
+        JsonNode text = content.get(HarnessEnvelope.CONTENT_TEXT);
+        return text == null || text.isNull() ? null : text.asText();
     }
 
-    private static String nonBlankString(Object value) {
+    private static RoutingDecision forwardText(String chatId, String text, HarnessEnvelope envelope) {
+        boolean markdown = envelope.contentType() != null && "text/markdown".equalsIgnoreCase(envelope.contentType());
+        String rendered = markdown ? MarkdownV2Renderer.render(text) : text;
+        return RoutingDecision.forward(new TelegramPayloads.TelegramOutboundMessage(
+                chatId, rendered, markdown ? "MarkdownV2" : "", false, resolveBotId(envelope)));
+    }
+
+    private static String nonBlankString(JsonNode value) {
         if (value == null) return null;
-        String text = value.toString().trim();
+        String text = value.asText().trim();
         return text.isBlank() ? null : text;
     }
 }

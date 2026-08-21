@@ -53,7 +53,7 @@ class HarnessEnvelopeTest {
         assertEquals("telegram-update-1001", envelope.messageId());
         assertNull(envelope.correlationId());
         assertEquals("message", envelope.type());
-        assertEquals("hello there", envelope.content().get("text"));
+        assertEquals("hello there", envelope.content().get("text").asText());
 
         assertEquals("12345", envelope.metadata().get("chatId"));
         assertEquals("telegram", envelope.metadata().get("source"));
@@ -127,5 +127,19 @@ class HarnessEnvelopeTest {
         assertEquals(original.type(), parsed.type());
         assertEquals(original.content().get("text"), parsed.content().get("text"));
         assertEquals("12345", parsed.metadata().get("chatId").toString());
+    }
+
+    @Test
+    void roundTripsMarkdownStringContentAndContentType() throws Exception {
+        HarnessEnvelope envelope = new HarnessEnvelope(1, "telegram:chat:12345", "s1", null, "c1",
+                "assistant_message", "text/markdown", MAPPER.readTree("\"## Result\""), Map.of("chatId", "12345"));
+
+        JsonNode serialized = MAPPER.readTree(MAPPER.writeValueAsString(envelope));
+        assertEquals("text/markdown", serialized.get("content_type").asText());
+        assertEquals("## Result", serialized.get("content").asText());
+        HarnessParseResult parsed = new HarnessEnvelopeParser().parse(serialized.toString());
+        assertTrue(parsed.isValid());
+        assertEquals("text/markdown", parsed.envelope().contentType());
+        assertEquals("## Result", parsed.envelope().content().asText());
     }
 }

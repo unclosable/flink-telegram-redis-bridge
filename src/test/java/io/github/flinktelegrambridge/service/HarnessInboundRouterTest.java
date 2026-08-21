@@ -31,8 +31,8 @@ class HarnessInboundRouterTest {
         assertEquals("question_answer", result.get().type());
         assertEquals("opaque-correlation", result.get().correlationId());
         assertEquals("telegram-callback-callback-id", result.get().messageId());
-        assertEquals("deploy", ((Map<?, ?>) ((java.util.List<?>) result.get().content().get("answers")).get(0)).get("id"));
-        assertEquals("Rolling", ((Map<?, ?>) ((java.util.List<?>) result.get().content().get("answers")).get(0)).get("value"));
+        assertEquals("deploy", result.get().content().get("answers").get(0).get("id").asText());
+        assertEquals("Rolling", result.get().content().get("answers").get(0).get("value").asText());
         assertEquals("12345", result.get().metadata().get("chatId"));
         assertFalse(router.route(callback("callback-key", "12345", "ops-bot")).isPresent());
     }
@@ -61,8 +61,8 @@ class HarnessInboundRouterTest {
         assertFalse(router.route(callback("alerts", "12345", "")).isPresent(), "toggle must not emit an answer");
         var result = router.route(callback("confirm", "12345", ""));
 
-        Object value = ((Map<?, ?>) ((java.util.List<?>) result.orElseThrow().content().get("answers")).get(0)).get("value");
-        assertEquals(java.util.List.of("Metrics", "Alerts"), value);
+        assertEquals(java.util.List.of("Metrics", "Alerts"), new com.fasterxml.jackson.databind.ObjectMapper()
+                .convertValue(result.orElseThrow().content().get("answers").get(0).get("value"), java.util.List.class));
     }
 
     @Test
@@ -113,9 +113,8 @@ class HarnessInboundRouterTest {
         assertEquals("question_answer", result.type());
         assertEquals("c", result.correlationId());
         assertEquals("telegram-update-100", result.messageId());
-        Map<?, ?> answer = (Map<?, ?>) ((java.util.List<?>) result.content().get("answers")).get(0);
-        assertEquals("reason", answer.get("id"));
-        assertEquals("Need a canary first", answer.get("value"));
+        assertEquals("reason", result.content().get("answers").get(0).get("id").asText());
+        assertEquals("Need a canary first", result.content().get("answers").get(0).get("value").asText());
         assertNull(registry.pendingFreeText);
     }
 

@@ -27,6 +27,11 @@ The bridge emits `message`, `steer`, `new_session`, and `question_answer`.
 Consumers may publish `assistant_message`, `error`, and `question_request`.
 
 - `assistant_message` and `error` use `content.text` and are delivered to the selected Telegram destination.
+- Additively, `assistant_message` and `error` may set top-level `content_type` to
+  `text/markdown` and carry `content` as a plain string. Version remains `1`.
+  The bridge converts its supported CommonMark subset to Telegram MarkdownV2;
+  object-shaped `content: {"text":"..."}` remains supported, including with
+  `content_type`, while envelopes without it retain legacy plain-text behavior.
 - `question_request` requires `conversation_id`, `correlation_id`, and `content.questions`. Each question is `{ "id": "...", "text": "...", "options": ["..."], "multi_select": false }`. Omit `options` for free text.
 
 The bridge preserves the separation between conversation routing and interaction correlation. Invalid, expired, duplicate, or unknown callback interactions are acknowledged and never fall through as ordinary messages.

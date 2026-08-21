@@ -30,6 +30,16 @@ class HarnessEnvelopeParserTest {
     }
 
     @Test
+    void parsesStringContentEnvelope() {
+        HarnessParseResult result = parser.parse("{\"version\":1,\"conversation_id\":\"telegram:chat:12345\","
+                + "\"type\":\"assistant_message\",\"content_type\":\"text/markdown\","
+                + "\"content\":\"**hi**\",\"metadata\":{\"chatId\":\"12345\"}}");
+        assertTrue(result.isValid());
+        assertEquals("**hi**", result.envelope().content().asText());
+        assertEquals("text/markdown", result.envelope().contentType());
+    }
+
+    @Test
     void parsesQuestionRequestAsKnownType() {
         HarnessParseResult result = parser.parse(
                 "{\"version\":1,\"conversation_id\":\"telegram:chat:12345\",\"session_id\":\"s1\","

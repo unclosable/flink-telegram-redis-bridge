@@ -70,14 +70,7 @@ public final class TelegramMessageSinkFunction extends RichSinkFunction<String> 
             payload = parsePayload(value);
             selectedBot = selectBot(payload);
             chatId = resolveChatId(payload.chatId(), selectedBot.defaultChatId());
-            sendMessage =
-                    SendMessage.builder()
-                            .chatId(chatId)
-                            .text(requireNonBlank(payload.text(), "Telegram outbound text must not be blank."))
-                            .build();
-            if (payload.parseMode() != null && !payload.parseMode().isBlank()) {
-                sendMessage.setParseMode(payload.parseMode().trim());
-            }
+            sendMessage = sendMessageOf(payload, chatId);
             if (Boolean.TRUE.equals(payload.disableNotification())) {
                 sendMessage.setDisableNotification(true);
             }
@@ -151,6 +144,17 @@ public final class TelegramMessageSinkFunction extends RichSinkFunction<String> 
                 .forceReply(true)
                 .inputFieldPlaceholder("Type your answer…")
                 .build();
+    }
+
+    static SendMessage sendMessageOf(TelegramPayloads.TelegramOutboundMessage payload, String chatId) {
+        SendMessage sendMessage = SendMessage.builder()
+                .chatId(chatId)
+                .text(requireNonBlank(payload.text(), "Telegram outbound text must not be blank."))
+                .build();
+        if (payload.parseMode() != null && !payload.parseMode().isBlank()) {
+            sendMessage.setParseMode(payload.parseMode().trim());
+        }
+        return sendMessage;
     }
 
     private OkHttpTelegramClient telegramClient(AppConfig.TelegramBotConfig bot) {
