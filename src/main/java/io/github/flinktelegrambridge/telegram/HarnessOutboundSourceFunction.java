@@ -15,6 +15,7 @@ import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -39,6 +40,8 @@ public final class HarnessOutboundSourceFunction extends RichSourceFunction<Stri
     private final String consumerName;
     private final long idleWaitMillis;
     private final long reclaimIntervalMillis;
+    private final Set<String> allowedBotIds;
+    private final boolean groupMessageEnabled;
     private final HarnessRedisStreamClient providedClient;
     private final QuestionCallbackRegistry providedCallbackRegistry;
 
@@ -75,6 +78,8 @@ public final class HarnessOutboundSourceFunction extends RichSourceFunction<Stri
         this.providedClient = providedClient;
         this.providedCallbackRegistry = providedCallbackRegistry;
         this.reclaimIntervalMillis = reclaimIntervalMillis;
+        this.allowedBotIds = config.telegramBotIds();
+        this.groupMessageEnabled = config.groupMessageEnabled();
     }
 
     @Override
@@ -93,7 +98,7 @@ public final class HarnessOutboundSourceFunction extends RichSourceFunction<Stri
                         stream,
                         group,
                         new HarnessEnvelopeParser(),
-                        new HarnessOutboundRouter(),
+                        new HarnessOutboundRouter(allowedBotIds, groupMessageEnabled),
                         new ObjectMapper(),
                         callbackRegistry);
         try {

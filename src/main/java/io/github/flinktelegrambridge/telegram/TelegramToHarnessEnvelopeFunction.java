@@ -32,7 +32,7 @@ public final class TelegramToHarnessEnvelopeFunction extends RichFlatMapFunction
     @Override
     public void open(OpenContext openContext) {
         callbackRegistry = providedRegistry == null ? new LettuceQuestionCallbackRegistry(AppConfig.load()) : providedRegistry;
-        router = new HarnessInboundRouter(callbackRegistry);
+        router = new HarnessInboundRouter(callbackRegistry, AppConfig.load().inboundPrivateOnly());
         responder = providedResponder == null ? new TelegramBotCallbackResponder(AppConfig.load()) : providedResponder;
     }
 

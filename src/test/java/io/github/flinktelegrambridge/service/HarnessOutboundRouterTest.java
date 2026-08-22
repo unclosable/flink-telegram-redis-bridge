@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -183,6 +184,86 @@ class HarnessOutboundRouterTest {
         assertEquals(1, decision.callbackBindings().size());
         assertTrue(decision.callbackBindings().get(0).freeText());
         assertEquals("details", decision.callbackBindings().get(0).questionId());
+    }
+
+    @Test
+    void routesEnabledGroupMessageToExplicitTargetAndBot() {
+        HarnessOutboundRouter enabled = new HarnessOutboundRouter(Set.of("personal", "operator"), true);
+        RoutingDecision decision = enabled.route(HarnessParseResult.valid(groupMessage("hello", null, Map.of(
+                "target_chat_id", "-100123", "bot_id", "operator"))));
+        assertTrue(decision.shouldForward());
+        assertEquals("-100123", decision.outboundMessage().chatId());
+        assertEquals("operator", decision.outboundMessage().botId());
+        assertEquals("hello", decision.outboundMessage().text());
+        assertEquals("", decision.outboundMessage().parseMode());
+    }
+
+    @Test
+    void groupMessageUsesExplicitTargetAndBotWithoutFallback() {
+        HarnessOutboundRouter enabled = new HarnessOutboundRouter(Set.of("operator"), true);
+        HarnessEnvelope envelope = new HarnessEnvelope(1, "telegram:chat:999", "s1", null, "c1", "group_message",
+                null, JSON.valueToTree(text("hello")), Map.of(
+                "target_chat_id", "-100123", "bot_id", "operator", "chatId", "999", "botId", "decoy"));
+
+        RoutingDecision decision = enabled.route(HarnessParseResult.valid(envelope));
+
+        assertTrue(decision.shouldForward());
+        assertEquals("-100123", decision.outboundMessage().chatId());
+        assertEquals("operator", decision.outboundMessage().botId());
+    }
+
+    @Test
+    void routesMarkdownGroupMessage() {
+        HarnessOutboundRouter enabled = new HarnessOutboundRouter(Set.of("personal"), true);
+        RoutingDecision decision = enabled.route(HarnessParseResult.valid(groupMessage("**hello**!", "TEXT/MARKDOWN", Map.of(
+                "target_chat_id", "-100123", "bot_id", "personal"))));
+        assertTrue(decision.shouldForward());
+        assertEquals("*hello*\\!", decision.outboundMessage().text());
+        assertEquals("MarkdownV2", decision.outboundMessage().parseMode());
+    }
+
+    @Test
+    void defaultRouterDropsGroupMessage() {
+        RoutingDecision decision = router.route(HarnessParseResult.valid(groupMessage("hello", null, Map.of(
+                "target_chat_id", "-100123", "bot_id", "personal"))));
+        assertFalse(decision.shouldForward());
+        assertEquals("group_message dropped: feature disabled", decision.reason());
+    }
+
+    @Test
+    void enabledGroupMessageValidatesExplicitFieldsAndBot() {
+        HarnessOutboundRouter enabled = new HarnessOutboundRouter(Set.of("personal"), true);
+        assertFalse(enabled.route(HarnessParseResult.valid(groupMessage(" ", null, Map.of(
+                "target_chat_id", "-100123", "bot_id", "personal")))).shouldForward());
+        assertFalse(enabled.route(HarnessParseResult.valid(groupMessage("hello", null, Map.of(
+                "bot_id", "personal")))).shouldForward());
+        assertFalse(enabled.route(HarnessParseResult.valid(groupMessage("hello", null, Map.of(
+                "target_chat_id", "-100123")))).shouldForward());
+        RoutingDecision unknown = enabled.route(HarnessParseResult.valid(groupMessage("hello", null, Map.of(
+                "target_chat_id", "-100123", "bot_id", "unknown"))));
+        assertFalse(unknown.shouldForward());
+        assertEquals("group_message dropped: unknown bot_id unknown", unknown.reason());
+    }
+
+    @Test
+    void enabledRouterPreservesExistingOutboundBehavior() {
+        HarnessOutboundRouter enabled = new HarnessOutboundRouter(Set.of("personal"), true);
+        RoutingDecision assistant = enabled.route(HarnessParseResult.valid(envelope(
+                "telegram:chat:12345", Map.of("chatId", "12345"), "assistant_message", text("hello"))));
+        RoutingDecision error = enabled.route(HarnessParseResult.valid(envelope(
+                "telegram:chat:12345", Map.of("chatId", "12345"), "error", text("boom"))));
+        Map<String, Object> question = Map.of("id", "choice", "text", "Choose", "options", List.of("yes"));
+        RoutingDecision questionRequest = enabled.route(HarnessParseResult.valid(new HarnessEnvelope(
+                1, "telegram:chat:12345", "s1", null, "c1", "question_request",
+                Map.of("questions", List.of(question)), Map.of("chatId", "12345"))));
+        assertTrue(assistant.shouldForward());
+        assertTrue(error.shouldForward());
+        assertTrue(questionRequest.shouldForward());
+    }
+
+    private static HarnessEnvelope groupMessage(String text, String contentType, Map<String, Object> metadata) {
+        return new HarnessEnvelope(1, "unrelated:conversation", "s1", null, "c1", "group_message",
+                contentType, JSON.valueToTree(text(text)), metadata);
     }
 
     private static HarnessEnvelope envelope(

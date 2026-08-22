@@ -46,7 +46,7 @@ public final class TelegramMessageSinkFunction extends RichSinkFunction<String> 
         this(
                 List.of(
                         new AppConfig.TelegramBotConfig(
-                                "primary",
+                                "personal",
                                 requireNonBlank(botToken, "Telegram bot token must not be blank."),
                                 normalizeValue(defaultChatId))));
     }
@@ -187,34 +187,34 @@ public final class TelegramMessageSinkFunction extends RichSinkFunction<String> 
     }
 
     private AppConfig.TelegramBotConfig selectBot(TelegramPayloads.TelegramOutboundMessage payload) {
-        AppConfig.TelegramBotConfig primaryBot = bots.get(0);
+        AppConfig.TelegramBotConfig personalBot = bots.get(0);
         String requestedBotId = normalizeValue(payload.botId());
         if (!requestedBotId.isBlank()) {
             AppConfig.TelegramBotConfig requestedBot = botsById.get(requestedBotId);
             if (requestedBot != null) {
                 return requestedBot;
             }
-            LOG.warn("Requested outbound botId {} is not configured; falling back to primary bot {}", requestedBotId, primaryBot.id());
-            return primaryBot;
+            LOG.warn("Requested outbound botId {} is not configured; falling back to personal bot {}", requestedBotId, personalBot.id());
+            return personalBot;
         }
 
         String resolvedChatId;
         try {
-            resolvedChatId = resolveChatId(payload.chatId(), primaryBot.defaultChatId());
+            resolvedChatId = resolveChatId(payload.chatId(), personalBot.defaultChatId());
         } catch (IllegalArgumentException exception) {
-            return primaryBot;
+            return personalBot;
         }
 
         AppConfig.TelegramBotConfig matchingBot = null;
         for (AppConfig.TelegramBotConfig bot : bots) {
             if (bot.defaultChatId().equals(resolvedChatId)) {
                 if (matchingBot != null) {
-                    return primaryBot;
+                    return personalBot;
                 }
                 matchingBot = bot;
             }
         }
-        return matchingBot == null ? primaryBot : matchingBot;
+        return matchingBot == null ? personalBot : matchingBot;
     }
 
     private static List<AppConfig.TelegramBotConfig> normalizeBots(List<AppConfig.TelegramBotConfig> bots) {
@@ -259,7 +259,7 @@ public final class TelegramMessageSinkFunction extends RichSinkFunction<String> 
         }
         return List.of(
                 new AppConfig.TelegramBotConfig(
-                        "primary", config.telegramBotToken(), config.telegramOutboundDefaultChatId()));
+                        "personal", config.telegramBotToken(), config.telegramOutboundDefaultChatId()));
     }
 
     private static String requireNonBlank(String value, String message) {

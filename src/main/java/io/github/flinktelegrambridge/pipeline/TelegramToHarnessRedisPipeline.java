@@ -23,10 +23,10 @@ public class TelegramToHarnessRedisPipeline {
 
         DataStream<String> telegramUpdates;
         if (config.telegramBots().size() > 1) {
-            AppConfig.TelegramBotConfig primaryBot = config.telegramBots().get(0);
+            AppConfig.TelegramBotConfig personalBot = config.telegramBots().get(0);
             DataStream<String> unioned =
-                    env.addSource(new TelegramLongPollingSourceFunction(primaryBot.id(), primaryBot.token()))
-                            .name("telegram-source-" + primaryBot.id());
+                    env.addSource(new TelegramLongPollingSourceFunction(personalBot.id(), personalBot.token()))
+                            .name("telegram-source-" + personalBot.id());
             for (int index = 1; index < config.telegramBots().size(); index++) {
                 AppConfig.TelegramBotConfig bot = config.telegramBots().get(index);
                 DataStream<String> stream =

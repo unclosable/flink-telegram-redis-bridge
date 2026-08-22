@@ -26,7 +26,7 @@ final class TelegramBotCallbackResponder implements TelegramCallbackResponder {
 
     TelegramBotCallbackResponder(AppConfig config) {
         List<AppConfig.TelegramBotConfig> configured = config.telegramBots().isEmpty()
-                ? List.of(new AppConfig.TelegramBotConfig("primary", config.telegramBotToken(), config.telegramOutboundDefaultChatId()))
+                ? List.of(new AppConfig.TelegramBotConfig("personal", config.telegramBotToken(), config.telegramOutboundDefaultChatId()))
                 : config.telegramBots();
         for (AppConfig.TelegramBotConfig bot : configured) bots.put(bot.id(), bot);
     }

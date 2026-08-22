@@ -16,7 +16,7 @@ Telegram-to-consumer traffic is appended to `harness:inbound` (configurable). Co
 
 ## Inbound envelopes
 
-The bridge emits `message`, `steer`, `new_session`, and `question_answer`.
+The bridge emits `message`, `steer`, `new_session`, and `question_answer`. Inbound admission is private-chat-only by default; group, supergroup, channel, and unknown chat types are not appended unless `telegram.inbound.private-only` is disabled.
 
 - `message` and `steer` contain `content.text`; metadata carries Telegram routing details.
 - `new_session` requests a new consumer-side session for the conversation.
@@ -24,7 +24,7 @@ The bridge emits `message`, `steer`, `new_session`, and `question_answer`.
 
 ## Outbound envelopes
 
-Consumers may publish `assistant_message`, `error`, and `question_request`.
+Consumers may publish `assistant_message`, `error`, `question_request`, and (when enabled) `group_message`.
 
 - `assistant_message` and `error` use `content.text` and are delivered to the selected Telegram destination.
 - Additively, `assistant_message` and `error` may set top-level `content_type` to
@@ -33,5 +33,11 @@ Consumers may publish `assistant_message`, `error`, and `question_request`.
   object-shaped `content: {"text":"..."}` remains supported, including with
   `content_type`, while envelopes without it retain legacy plain-text behavior.
 - `question_request` requires `conversation_id`, `correlation_id`, and `content.questions`. Each question is `{ "id": "...", "text": "...", "options": ["..."], "multi_select": false }`. Omit `options` for free text.
+- `group_message` is a non-conversational, one-way broadcast. Its v1 shape uses `content.text`, `metadata.target_chat_id`, and `metadata.bot_id`; the bot id must name an existing indexed bot. It never falls back to `conversation_id`, `metadata.chatId`, `metadata.botId`, or a default chat. The side feature is disabled unless `telegram.group-message.enabled` is set.
+
+## Configuration
+
+- `telegram.inbound.private-only=true` fails closed so only Telegram private chats reach `harness:inbound`; set it to `false` to admit groups and channels.
+- `telegram.group-message.enabled=false` keeps explicit `group_message` broadcasts disabled by default.
 
 The bridge preserves the separation between conversation routing and interaction correlation. Invalid, expired, duplicate, or unknown callback interactions are acknowledged and never fall through as ordinary messages.

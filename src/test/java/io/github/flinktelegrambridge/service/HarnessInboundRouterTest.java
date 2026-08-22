@@ -156,6 +156,46 @@ class HarnessInboundRouterTest {
         assertFalse(router.route(expired).isPresent());
     }
 
+    @Test
+    void privateOnlyDropsNonPrivateMessages() {
+        HarnessInboundRouter router = new HarnessInboundRouter(new FakeRegistry());
+        for (String chatType : java.util.List.of("group", "supergroup", "channel", "", "unknown")) {
+            assertTrue(router.route(message(chatType)).isEmpty(), chatType);
+        }
+        assertTrue(router.route(message(null)).isEmpty());
+    }
+
+    @Test
+    void privateOnlyDropsGroupCallbacks() {
+        FakeRegistry registry = new FakeRegistry();
+        HarnessInboundRouter router = new HarnessInboundRouter(registry);
+        for (String chatType : java.util.List.of("group", "supergroup")) {
+            registry.register(new QuestionCallbackBinding(
+                    "callback-key-" + chatType, "c", "telegram:chat:12345", "q", "yes", "12345", "", false));
+            TelegramPayloads.TelegramInboundMessage callback = callback("callback-key-" + chatType, "12345", "");
+            callback = new TelegramPayloads.TelegramInboundMessage(
+                    callback.source(), callback.botId(), callback.updateType(), callback.updateId(), callback.messageId(),
+                    callback.chatId(), chatType, callback.chatTitle(), callback.fromUserId(), callback.fromUsername(),
+                    callback.fromFirstName(), callback.text(), callback.messageDate(), callback.rawUpdateJson(),
+                    callback.callbackQueryId(), callback.callbackData(), callback.replyToMessageId());
+            QuestionCallbackResult result = router.handleCallback(callback);
+            assertFalse(result.handled());
+            assertTrue(result.envelope().isEmpty());
+        }
+    }
+
+    @Test
+    void nonPrivateAdmissionCanBeEnabled() {
+        HarnessInboundRouter router = new HarnessInboundRouter(new FakeRegistry(), false);
+        assertEquals("message", router.route(message("group")).orElseThrow().type());
+    }
+
+    private static TelegramPayloads.TelegramInboundMessage message(String chatType) {
+        return new TelegramPayloads.TelegramInboundMessage(
+                "telegram", "", "message", 1, 2, "12345", chatType, null,
+                7L, null, null, "ordinary message", 1, "{}");
+    }
+
     private static TelegramPayloads.TelegramInboundMessage callback(String key, String chatId, String botId) {
         return new TelegramPayloads.TelegramInboundMessage(
                 "telegram", botId, "callback_query", 99, 11, chatId, "private", null,

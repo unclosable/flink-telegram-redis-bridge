@@ -12,13 +12,21 @@ import java.util.List;
 public final class HarnessInboundRouter {
 
     public static final String CALLBACK_PREFIX = "hq:";
+    public static final String PRIVATE_CHAT_TYPE = "private";
     private final QuestionCallbackRegistry callbackRegistry;
+    private final boolean privateOnly;
 
     public HarnessInboundRouter(QuestionCallbackRegistry callbackRegistry) {
+        this(callbackRegistry, true);
+    }
+
+    public HarnessInboundRouter(QuestionCallbackRegistry callbackRegistry, boolean privateOnly) {
         this.callbackRegistry = callbackRegistry;
+        this.privateOnly = privateOnly;
     }
 
     public Optional<HarnessEnvelope> route(TelegramPayloads.TelegramInboundMessage inbound) {
+        if (!isPrivateChat(inbound)) return Optional.empty();
         if ("callback_query".equals(inbound.updateType())) return handleCallback(inbound).envelope();
         if (inbound.chatId() == null || inbound.chatId().isBlank() || inbound.text() == null || inbound.text().isBlank()) {
             return Optional.empty();
@@ -39,6 +47,7 @@ public final class HarnessInboundRouter {
     }
 
     public QuestionCallbackResult handleCallback(TelegramPayloads.TelegramInboundMessage inbound) {
+        if (!isPrivateChat(inbound)) return QuestionCallbackResult.ignored("This action is no longer available.");
         if (inbound.callbackQueryId() == null || inbound.callbackQueryId().isBlank()
                 || inbound.callbackData() == null || !inbound.callbackData().startsWith(CALLBACK_PREFIX)) {
             return QuestionCallbackResult.ignored("This action is no longer available.");
@@ -91,6 +100,10 @@ public final class HarnessInboundRouter {
                 consumed,
                 selected,
                 Optional.of(questionAnswer(inbound, consumed, selected)));
+    }
+
+    private boolean isPrivateChat(TelegramPayloads.TelegramInboundMessage inbound) {
+        return !privateOnly || PRIVATE_CHAT_TYPE.equals(inbound.chatType());
     }
 
     private static HarnessEnvelope questionAnswer(

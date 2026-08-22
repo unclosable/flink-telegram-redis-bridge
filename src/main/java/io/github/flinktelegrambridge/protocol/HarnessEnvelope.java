@@ -37,6 +37,8 @@ public record HarnessEnvelope(
     public static final String TYPE_STEER = "steer";
     public static final String TYPE_ASSISTANT_MESSAGE = "assistant_message";
     public static final String TYPE_ERROR = "error";
+    /** One-way broadcast to an explicit group chat id via an existing indexed bot. */
+    public static final String TYPE_GROUP_MESSAGE = "group_message";
     /** Harness requests an interactive answer from the Telegram user. */
     public static final String TYPE_QUESTION_REQUEST = "question_request";
     /** Telegram callback answer to a prior {@link #TYPE_QUESTION_REQUEST}. */

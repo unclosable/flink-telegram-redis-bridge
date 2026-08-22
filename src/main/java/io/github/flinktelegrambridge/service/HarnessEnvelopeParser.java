@@ -23,6 +23,7 @@ public final class HarnessEnvelopeParser {
                     HarnessEnvelope.TYPE_STEER,
                     HarnessEnvelope.TYPE_ASSISTANT_MESSAGE,
                     HarnessEnvelope.TYPE_ERROR,
+                    HarnessEnvelope.TYPE_GROUP_MESSAGE,
                     HarnessEnvelope.TYPE_QUESTION_REQUEST,
                     HarnessEnvelope.TYPE_QUESTION_ANSWER);
 

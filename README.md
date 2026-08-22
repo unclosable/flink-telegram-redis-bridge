@@ -38,6 +38,8 @@ Submit `io.github.flinktelegrambridge.pipeline.TelegramToHarnessRedisPipeline` a
 | `TELEGRAM_BOT_1_ID` | no | First bot identifier; defaults to `bot-1` |
 | `TELEGRAM_BOT_1_TOKEN` | yes | First Telegram bot credential |
 | `TELEGRAM_BOT_1_DEFAULT_CHAT_ID` | no | Fallback destination for this bot |
+| `TELEGRAM_INBOUND_PRIVATE_ONLY` | no | Accept only private inbound chats; default `true` |
+| `TELEGRAM_GROUP_MESSAGE_ENABLED` | no | Enable outbound `group_message` delivery; default `false` |
 | `REDIS_QUEUE_CONSUMER_IDLE_WAIT_MILLIS` | no | Redis read block time; default `1000` |
 | `TELEGRAM_CALLBACK_REGISTRY_TTL_SECONDS` | no | Callback binding lifetime; default `86400` |
 

@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.UUID;
+import java.util.Set;
 
 /**
  * Routes a parsed outbound envelope to a Telegram delivery decision.
@@ -33,6 +34,17 @@ public final class HarnessOutboundRouter {
 
     public static final String CONVERSATION_CHAT_MARKER = ":chat:";
     private static final int MAX_ERROR_TEXT_LENGTH = 500;
+    private final Set<String> allowedBotIds;
+    private final boolean groupMessageEnabled;
+
+    public HarnessOutboundRouter() {
+        this(Set.of(), false);
+    }
+
+    public HarnessOutboundRouter(Set<String> allowedBotIds, boolean groupMessageEnabled) {
+        this.allowedBotIds = Set.copyOf(allowedBotIds);
+        this.groupMessageEnabled = groupMessageEnabled;
+    }
 
     public RoutingDecision route(HarnessParseResult result) {
         if (result.isMalformed()) {
@@ -47,11 +59,28 @@ public final class HarnessOutboundRouter {
                 return routeAssistantMessage(envelope);
             case HarnessEnvelope.TYPE_ERROR:
                 return routeError(envelope);
+            case HarnessEnvelope.TYPE_GROUP_MESSAGE:
+                return routeGroupMessage(envelope);
             case HarnessEnvelope.TYPE_QUESTION_REQUEST:
                 return routeQuestionRequest(envelope);
             default:
                 return RoutingDecision.drop("unsupported outbound type dropped: " + envelope.type());
         }
+    }
+
+    private RoutingDecision routeGroupMessage(HarnessEnvelope envelope) {
+        if (!groupMessageEnabled) return RoutingDecision.drop("group_message dropped: feature disabled");
+        String text = textOf(envelope.content());
+        if (text == null || text.isBlank()) return RoutingDecision.drop("group_message dropped: blank text");
+        String targetChatId = metadataString(envelope, "target_chat_id");
+        if (targetChatId == null) return RoutingDecision.drop("group_message dropped: missing target_chat_id");
+        String botId = metadataString(envelope, "bot_id");
+        if (botId == null) return RoutingDecision.drop("group_message dropped: missing bot_id");
+        if (!allowedBotIds.contains(botId)) return RoutingDecision.drop("group_message dropped: unknown bot_id " + botId);
+        boolean markdown = envelope.contentType() != null && "text/markdown".equalsIgnoreCase(envelope.contentType());
+        String rendered = markdown ? MarkdownV2Renderer.render(text) : text;
+        return RoutingDecision.forward(new TelegramPayloads.TelegramOutboundMessage(
+                targetChatId, rendered, markdown ? "MarkdownV2" : "", false, botId));
     }
 
     private RoutingDecision routeAssistantMessage(HarnessEnvelope envelope) {
@@ -180,6 +209,14 @@ public final class HarnessOutboundRouter {
         }
         String botId = metadataBotId.toString().trim();
         return botId.isBlank() ? null : botId;
+    }
+
+    private static String metadataString(HarnessEnvelope envelope, String key) {
+        if (envelope == null || envelope.metadata() == null) return null;
+        Object value = envelope.metadata().get(key);
+        if (value == null) return null;
+        String text = value.toString().trim();
+        return text.isBlank() ? null : text;
     }
 
     private static String textOf(JsonNode content) {

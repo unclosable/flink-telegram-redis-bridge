@@ -50,6 +50,13 @@ class HarnessEnvelopeParserTest {
     }
 
     @Test
+    void parsesGroupMessageAsKnownType() {
+        HarnessParseResult result = parser.parse(outboundJson("group_message"));
+        assertTrue(result.isValid());
+        assertEquals("group_message", result.type());
+    }
+
+    @Test
     void rejectsMissingVersion() {
         String json =
                 "{\"conversation_id\":\"telegram:chat:1\",\"type\":\"message\","
