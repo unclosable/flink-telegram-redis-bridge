@@ -77,6 +77,21 @@ class HarnessEnvelopeTest {
     }
 
     @Test
+    void buildsSystemCommandEnvelope() {
+        HarnessEnvelope envelope = HarnessEnvelope.fromSystemCommand(inboundWithBot(), "renew_session");
+
+        assertEquals(1, envelope.version());
+        assertEquals("telegram:ops-bot:chat:12345", envelope.conversationId());
+        assertNull(envelope.sessionId());
+        assertEquals("telegram-update-1001", envelope.messageId());
+        assertNull(envelope.correlationId());
+        assertEquals(HarnessEnvelope.TYPE_SYSTEM_COMMAND, envelope.type());
+        assertEquals("renew_session", envelope.content().get("command").asText());
+        assertEquals("12345", envelope.metadata().get("chatId"));
+        assertEquals("ops-bot", envelope.metadata().get("botId"));
+    }
+
+    @Test
     void serializesInboundEnvelopeToProtocolShape() throws Exception {
         String json = MAPPER.writeValueAsString(HarnessEnvelope.fromInbound(inbound()));
         JsonNode node = MAPPER.readTree(json);

@@ -31,6 +31,9 @@ public final class HarnessInboundRouter {
         if (inbound.chatId() == null || inbound.chatId().isBlank() || inbound.text() == null || inbound.text().isBlank()) {
             return Optional.empty();
         }
+        if ("/renew".equals(inbound.text())) {
+            return Optional.of(HarnessEnvelope.fromSystemCommand(inbound, "renew_session"));
+        }
         if (inbound.replyToMessageId() != null) {
             try {
                 QuestionCallbackBinding freeText = callbackRegistry.consumeFreeText(

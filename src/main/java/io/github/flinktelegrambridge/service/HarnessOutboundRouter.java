@@ -22,6 +22,7 @@ import java.util.Set;
  * <ul>
  *   <li>{@code assistant_message} &rarr; forward {@code content.text} to Telegram.</li>
  *   <li>{@code error} &rarr; forward a short error text when a chat id is resolvable.</li>
+ *   <li>{@code system_command_result} &rarr; forward {@code content.message} to Telegram.</li>
  *   <li>{@code question_request} &rarr; render each question with opaque callback buttons.</li>
  *   <li>malformed / unsupported / unknown &rarr; drop safely (never throw, never retry forever).</li>
  * </ul>
@@ -59,6 +60,8 @@ public final class HarnessOutboundRouter {
                 return routeAssistantMessage(envelope);
             case HarnessEnvelope.TYPE_ERROR:
                 return routeError(envelope);
+            case HarnessEnvelope.TYPE_SYSTEM_COMMAND_RESULT:
+                return routeSystemCommandResult(envelope);
             case HarnessEnvelope.TYPE_GROUP_MESSAGE:
                 return routeGroupMessage(envelope);
             case HarnessEnvelope.TYPE_QUESTION_REQUEST:
@@ -108,6 +111,19 @@ public final class HarnessOutboundRouter {
             return RoutingDecision.drop("error dropped (no resolvable chatId): " + detail);
         }
         return forwardText(chatId, "Error: " + detail, envelope);
+    }
+
+    private RoutingDecision routeSystemCommandResult(HarnessEnvelope envelope) {
+        String chatId = resolveChatId(envelope);
+        if (chatId == null) {
+            return RoutingDecision.drop("system_command_result dropped: no resolvable chatId");
+        }
+        String status = nonBlankString(envelope.content() == null ? null : envelope.content().get("status"));
+        String message = nonBlankString(envelope.content() == null ? null : envelope.content().get("message"));
+        if (message == null) {
+            message = "ok".equals(status) ? "Command succeeded." : "Command failed.";
+        }
+        return forwardText(chatId, message, envelope);
     }
 
     private RoutingDecision routeQuestionRequest(HarnessEnvelope envelope) {

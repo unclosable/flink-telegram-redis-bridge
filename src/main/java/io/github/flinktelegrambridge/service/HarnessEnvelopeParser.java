@@ -19,6 +19,7 @@ public final class HarnessEnvelopeParser {
     private static final Set<String> KNOWN_TYPES =
             Set.of(
                     HarnessEnvelope.TYPE_MESSAGE,
+                    HarnessEnvelope.TYPE_SYSTEM_COMMAND_RESULT,
                     HarnessEnvelope.TYPE_NEW_SESSION,
                     HarnessEnvelope.TYPE_STEER,
                     HarnessEnvelope.TYPE_ASSISTANT_MESSAGE,

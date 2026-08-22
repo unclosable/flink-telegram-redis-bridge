@@ -18,6 +18,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class HarnessInboundRouterTest {
 
     @Test
+    void routesBareRenewAsSystemCommandButLeavesVariantsAsMessages() {
+        HarnessInboundRouter router = new HarnessInboundRouter(new FakeRegistry());
+
+        var command = router.route(message("private", "/renew")).orElseThrow();
+        assertEquals("system_command", command.type());
+        assertEquals("renew_session", command.content().get("command").asText());
+        assertFalse("message".equals(command.type()));
+
+        for (String text : java.util.List.of("/renew ", "/renew x", "/Renew", "ordinary message")) {
+            assertEquals("message", router.route(message("private", text)).orElseThrow().type(), text);
+        }
+        assertTrue(router.route(message("group", "/renew")).isEmpty());
+    }
+
+    @Test
     void routesRegisteredCallbackAsQuestionAnswerAndConsumesIt() {
         FakeRegistry registry = new FakeRegistry();
         registry.register(new QuestionCallbackBinding(
@@ -191,9 +206,13 @@ class HarnessInboundRouterTest {
     }
 
     private static TelegramPayloads.TelegramInboundMessage message(String chatType) {
+        return message(chatType, "ordinary message");
+    }
+
+    private static TelegramPayloads.TelegramInboundMessage message(String chatType, String text) {
         return new TelegramPayloads.TelegramInboundMessage(
                 "telegram", "", "message", 1, 2, "12345", chatType, null,
-                7L, null, null, "ordinary message", 1, "{}");
+                7L, null, null, text, 1, "{}");
     }
 
     private static TelegramPayloads.TelegramInboundMessage callback(String key, String chatId, String botId) {

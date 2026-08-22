@@ -105,6 +105,35 @@ class HarnessOutboundRouterTest {
     }
 
     @Test
+    void routesSystemCommandResultWithConnectorMessageAndBot() {
+        HarnessEnvelope envelope = envelope("telegram:other:chat:99999", Map.of("chatId", "12345", "botId", "ops-bot"),
+                "system_command_result", Map.of("command", "renew_session", "status", "ok", "message", "Session renewed."));
+
+        RoutingDecision decision = router.route(HarnessParseResult.valid(envelope));
+
+        assertTrue(decision.shouldForward());
+        assertEquals("12345", decision.outboundMessage().chatId());
+        assertEquals("ops-bot", decision.outboundMessage().botId());
+        assertEquals("Session renewed.", decision.outboundMessage().text());
+    }
+
+    @Test
+    void routesSystemCommandResultFallbacksForOkAndError() {
+        HarnessEnvelope ok = envelope("telegram:chat:12345", Map.of(), "system_command_result",
+                Map.of("command", "renew_session", "status", "ok"));
+        HarnessEnvelope error = envelope("telegram:chat:12345", Map.of(), "system_command_result",
+                Map.of("command", "renew_session", "status", "error", "message", " "));
+
+        RoutingDecision okDecision = router.route(HarnessParseResult.valid(ok));
+        RoutingDecision errorDecision = router.route(HarnessParseResult.valid(error));
+
+        assertTrue(okDecision.shouldForward());
+        assertEquals("Command succeeded.", okDecision.outboundMessage().text());
+        assertTrue(errorDecision.shouldForward());
+        assertEquals("Command failed.", errorDecision.outboundMessage().text());
+    }
+
+    @Test
     void routesMarkdownErrorWithMarkdownV2() throws Exception {
         HarnessEnvelope envelope = new HarnessEnvelope(1, "telegram:chat:12345", "s1", null, "c1", "error",
                 "text/markdown", JSON.readTree("\"**boom**!\""), Map.of("chatId", "12345"));

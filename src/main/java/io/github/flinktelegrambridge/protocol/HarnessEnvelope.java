@@ -33,6 +33,10 @@ public record HarnessEnvelope(
     private static final ObjectMapper JSON = new ObjectMapper();
 
     public static final String TYPE_MESSAGE = "message";
+    /** Frontend-independent request for connector-owned system control. */
+    public static final String TYPE_SYSTEM_COMMAND = "system_command";
+    /** Connector-owned outcome for a {@link #TYPE_SYSTEM_COMMAND}. */
+    public static final String TYPE_SYSTEM_COMMAND_RESULT = "system_command_result";
     public static final String TYPE_NEW_SESSION = "new_session";
     public static final String TYPE_STEER = "steer";
     public static final String TYPE_ASSISTANT_MESSAGE = "assistant_message";
@@ -79,6 +83,24 @@ public record HarnessEnvelope(
                 null,
                 JSON.valueToTree(content),
                 metadata);
+    }
+
+    /** Builds an inbound frontend-independent system-control command envelope. */
+    public static HarnessEnvelope fromSystemCommand(
+            TelegramPayloads.TelegramInboundMessage inbound, String command) {
+        Map<String, Object> content = new LinkedHashMap<>();
+        content.put("command", command);
+
+        return new HarnessEnvelope(
+                SUPPORTED_VERSION,
+                buildConversationId(inbound.source(), inbound.botId(), inbound.chatId()),
+                null,
+                buildMessageId(inbound.updateId(), inbound.messageId()),
+                null,
+                TYPE_SYSTEM_COMMAND,
+                null,
+                JSON.valueToTree(content),
+                metadataFromInbound(inbound));
     }
 
     /** Builds an inbound answer envelope from a validated Telegram callback. */

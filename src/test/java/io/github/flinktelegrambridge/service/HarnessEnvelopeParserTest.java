@@ -57,6 +57,18 @@ class HarnessEnvelopeParserTest {
     }
 
     @Test
+    void parsesSystemCommandResultAsKnownType() {
+        HarnessParseResult result = parser.parse(
+                "{\"version\":1,\"conversation_id\":\"telegram:ops-bot:chat:12345\","
+                        + "\"session_id\":\"s2\",\"message_id\":\"telegram-update-1\","
+                        + "\"type\":\"system_command_result\",\"content\":{\"command\":\"renew_session\","
+                        + "\"status\":\"ok\",\"message\":\"Session renewed.\"},"
+                        + "\"metadata\":{\"chatId\":\"12345\",\"botId\":\"ops-bot\"}}");
+        assertTrue(result.isValid());
+        assertEquals("system_command_result", result.type());
+    }
+
+    @Test
     void rejectsMissingVersion() {
         String json =
                 "{\"conversation_id\":\"telegram:chat:1\",\"type\":\"message\","

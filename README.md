@@ -17,6 +17,10 @@ Telegram <-> outbound Flink job <-> harness:outbound (Redis Stream) <-> producer
 
 The inbound job normalizes messages, replies, and callback queries. The outbound job consumes responses and sends Telegram messages. Redis consumer groups provide acknowledgement and stale-message recovery.
 
+## System commands
+
+In a private chat, an exact bare `/renew` is a system-control command: the bridge emits the protocol intent `system_command` with `command: "renew_session"`, rather than forwarding the text as an ordinary message. The connector performs the session renewal and returns a `system_command_result`; its success or failure message is delivered to the originating Telegram chat. `/renew `, `/renew anything`, and `/Renew` are ordinary conversation messages. See [PROTOCOL.md](PROTOCOL.md) for the shared contract and ownership boundary.
+
 ## Quick start
 
 Build the shaded artifact with Java 21:
